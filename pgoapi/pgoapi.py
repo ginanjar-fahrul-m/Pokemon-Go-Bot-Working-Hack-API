@@ -36,6 +36,7 @@ MIN_BAD_ITEM_COUNTS = {Inventory.ITEM_POTION: 10,
                        Inventory.ITEM_BLUK_BERRY: 10,
                        Inventory.ITEM_NANAB_BERRY: 10,
                        Inventory.ITEM_REVIVE: 10}
+POKEBALLS = ["Pokeball", "Great Ball", "Ultra Ball", "Master Ball"]
 MIN_SIMILAR_POKEMON = 1
 
 
@@ -53,11 +54,13 @@ class PGoApi:
         self._position_lat = 0
         self._position_lng = 0
         self._position_alt = 0
+        self._pokeball_type = 1
         self._posf = (0,0,0)
         self.MIN_KEEP_IV = config.get("MIN_KEEP_IV", 0)
         self.KEEP_CP_OVER = config.get("KEEP_CP_OVER", 0)
         self.RELEASE_DUPLICATES = config.get("RELEASE_DUPLICATE", 0)
         self.DUPLICATE_CP_FORGIVENESS = config.get("DUPLICATE_CP_FOREGIVENESS", 0)
+        self.MAX_BALL_TYPE = config.get("MAX_BALL_TYPE", 2)
         self._req_method_list = []
         self._heartbeat_number = 5
         self.pokemon_names = pokemon_names
@@ -212,19 +215,20 @@ class PGoApi:
         neighbors = getNeighbors(self._posf)
         return self.get_map_objects(latitude=position[0], longitude=position[1], since_timestamp_ms=[0]*len(neighbors), cell_id=neighbors).call()
     
-    def attempt_catch(self,encounter_id,spawn_point_guid): #Problem here... add 4 if you have master ball
-        for i in range(1,3): # Range 1...4 iff you have master ball `range(1,4)`
-            r = self.catch_pokemon(
-                normalized_reticle_size= 1.950,
-                pokeball = i,
-                spin_modifier= 0.850,
-                hit_pokemon=True,
-                normalized_hit_position=1,
-                encounter_id=encounter_id,
-                spawn_point_guid=spawn_point_guid,
-                ).call()['responses']['CATCH_POKEMON']
-            if "status" in r:
-                return r
+    def attempt_catch(self,encounter_id,spawn_point_guid,ball_type):
+        r = self.catch_pokemon(
+            normalized_reticle_size= 1.950,
+            pokeball = ball_type,
+            spin_modifier= 0.850,
+            hit_pokemon=True,
+            normalized_hit_position=1,
+            encounter_id=encounter_id,
+            spawn_point_guid=spawn_point_guid,
+            ).call()['responses']['CATCH_POKEMON']
+        self.log.info("Throwing pokeball type: %s", POKEBALLS[ball_type-1])
+        if "status" in r:
+            self.log.debug("Status: %d", r['status'])
+            return r
 
     def cleanup_inventory(self, inventory_items=None):
         if not inventory_items:
@@ -288,27 +292,34 @@ class PGoApi:
 
     def disk_encounter_pokemon(self, lureinfo):
         try:
-             encounter_id = lureinfo['encounter_id']
-             fort_id = lureinfo['fort_id']
-             position = self._posf
-             resp = self.disk_encounter(encounter_id=encounter_id, fort_id=fort_id, player_latitude=position[0], player_longitude=position[1]).call()['responses']['DISK_ENCOUNTER']
-             if resp['result'] == 1:
-                 capture_status = -1
-                 while capture_status != 0 and capture_status != 3:
-                     catch_attempt = self.attempt_catch(encounter_id,fort_id)
-                     capture_status = catch_attempt['status']
-                     if capture_status == 1:
-                         self.log.debug("Caught Pokemon: : %s", catch_attempt)
-                         self.log.info("Caught Pokemon:  %s", self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])])
-                         sleep(2) # If you want to make it faster, delete this line... would not recommend though
-                         return catch_attempt
-                     elif capture_status != 2:
-                         self.log.debug("Failed Catch: : %s", catch_attempt)
-                         self.log.info("Failed to catch Pokemon:  %s", self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])])
-                         return False
-                     sleep(2) # If you want to make it faster, delete this line... would not recommend though
+            encounter_id = lureinfo['encounter_id']
+            fort_id = lureinfo['fort_id']
+            position = self._posf
+            resp = self.disk_encounter(encounter_id=encounter_id, fort_id=fort_id, player_latitude=position[0], player_longitude=position[1]).call()['responses']['DISK_ENCOUNTER']
+            if resp['result'] == 1:
+                capture_status = -1
+                while capture_status != 0 and capture_status != 3:
+                    catch_attempt = self.attempt_catch(encounter_id,fort_id,self._pokeball_type)
+                    capture_status = catch_attempt['status']
+                    if capture_status == 1:
+                        self.log.debug("Caught Pokemon: : %s", catch_attempt)
+                        self.log.info("Caught Pokemon:  %s", self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])])
+                        self._pokeball_type = 1
+                        sleep(2) # If you want to make it faster, delete this line... would not recommend though
+                        return catch_attempt
+                    elif capture_status == 2:       
+                        self.log.info("Pokemon %s is too wild", self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])])
+                        if self._pokeball_type < self.MAX_BALL_TYPE:
+                            self._pokeball_type += 1
+                    elif capture_status != 2:
+                        self.log.debug("Failed Catch: : %s", catch_attempt)
+                        self.log.info("Failed to catch Pokemon:  %s", self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])])
+                        self._pokeball_type = 1
+                        return False
+                    sleep(2) # If you want to make it faster, delete this line... would not recommend though
         except Exception as e:
             self.log.error("Error in disk encounter %s", e)
+            self._pokeball_type = 1
             return False
 
 
@@ -321,18 +332,25 @@ class PGoApi:
         if encounter['status'] == 1:
             capture_status = -1
             while capture_status != 0 and capture_status != 3:
-                catch_attempt = self.attempt_catch(encounter_id,spawn_point_id)
+                catch_attempt = self.attempt_catch(encounter_id,spawn_point_id,self._pokeball_type)
                 capture_status = catch_attempt['status']
                 if capture_status == 1:
                     self.log.debug("Caught Pokemon: : %s", catch_attempt)
                     self.log.info("Caught Pokemon:  %s", self.pokemon_names[str(pokemon['pokemon_id'])])
+                    self._pokeball_type = 1
                     sleep(2) # If you want to make it faster, delete this line... would not recommend though
                     return catch_attempt
+                elif capture_status == 2:
+                    self.log.info("Pokemon %s is too wild", self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])])
+                    if self._pokeball_type < self.MAX_BALL_TYPE:
+                        self._pokeball_type += 1
                 elif capture_status != 2:
                     self.log.debug("Failed Catch: : %s", catch_attempt)
                     self.log.info("Failed to Catch Pokemon:  %s", self.pokemon_names[str(pokemon['pokemon_id'])])
+                    self._pokeball_type = 1
                 return False
                 sleep(2) # If you want to make it faster, delete this line... would not recommend though
+        self._pokeball_type = 1
         return False
 
 
