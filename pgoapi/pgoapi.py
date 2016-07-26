@@ -155,6 +155,7 @@ class PGoApi:
                 f.write(json.dumps(res['responses'], indent=2))
             self.log.info("\n\r" + get_inventory_data(res, self.pokemon_names))
             self.log.info("\n\r" + get_inventory_candy(res, self.pokemon_names))
+            self.log.info("\n\r" + get_incubators_stat(res))
             self.log.info("Current total caught " + get_pokedex_stat(res))
             self.log.debug(self.cleanup_inventory(res['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']))
 
