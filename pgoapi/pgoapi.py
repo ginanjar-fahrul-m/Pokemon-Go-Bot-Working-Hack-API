@@ -152,6 +152,7 @@ class PGoApi:
                 f.write(json.dumps(res['responses'], indent=2))
             self.log.info("\n\r" + get_inventory_data(res, self.pokemon_names))
             self.log.info("\n\r" + get_inventory_candy(res, self.pokemon_names))
+            self.log.info("Current total caught pokemon: " + str(get_pokedex_stat(res, self.pokemon_names)))
             self.log.debug(self.cleanup_inventory(res['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']))
 
         self._heartbeat_number += 1
@@ -247,11 +248,11 @@ class PGoApi:
                 pokemons = sorted(pokemons, lambda x,y: cmp(x['cp'],y['cp']),reverse=True)
                 for pokemon in pokemons[MIN_SIMILAR_POKEMON:]:
                     if 'cp' in pokemon and pokemonIVPercentage(pokemon) < self.MIN_KEEP_IV and pokemon['cp'] < self.KEEP_CP_OVER:
-                        if pokemon['pokemon_id'] == 16:
-                            for inventory_item in inventory_items:
-                                if "pokemon_family" in inventory_item['inventory_item_data'] and inventory_item['inventory_item_data']['pokemon_family']['family_id'] == 16 and inventory_item['inventory_item_data']['pokemon_family']['candy'] > 11:
-                                  self.log.info("Evolving pokemon: %s", self.pokemon_names[str(pokemon['pokemon_id'])])
-                                  self.evolve_pokemon(pokemon_id = pokemon['id'])
+                        #if pokemon['pokemon_id'] == 16:
+                        #    for inventory_item in inventory_items:
+                        #        if "pokemon_family" in inventory_item['inventory_item_data'] and inventory_item['inventory_item_data']['pokemon_family']['family_id'] == 16 and inventory_item['inventory_item_data']['pokemon_family']['candy'] > 11:
+                        #          self.log.info("Evolving pokemon: %s", self.pokemon_names[str(pokemon['pokemon_id'])])
+                        #          self.evolve_pokemon(pokemon_id = pokemon['id'])
                         self.log.debug("Releasing pokemon: %s", pokemon)
                         self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemonIVPercentage(pokemon))
                         self.release_pokemon(pokemon_id = pokemon["id"])
