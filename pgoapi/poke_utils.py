@@ -29,11 +29,13 @@ def get_inventory_candy(res, poke_names):
         x['pokemon_family']['candy']), inventory_items_family_list)))
 
 
-def get_pokedex_stat(res, poke_names):
+def get_pokedex_stat(res):
     inventory_delta = res['responses']['GET_INVENTORY'].get('inventory_delta', {})
     inventory_items = inventory_delta.get('inventory_items', [])
     inventory_items_dict_list = map(lambda x: x.get('inventory_item_data', {}), inventory_items)
     inventory_items_pokemon_list = filter(lambda x: 'pokemon_data' in x and 'is_egg' not in x['pokemon_data'],
                                           inventory_items_dict_list)
+    inventory_items_family_list = filter(lambda x: 'pokemon_family' in x,
+                                          inventory_items_dict_list)
 
-    return len(inventory_items_pokemon_list)
+    return "pokemon: " + str(len(inventory_items_pokemon_list)) + " candy: " + str(sum(int(i['pokemon_family']['candy']) for i in inventory_items_family_list))
