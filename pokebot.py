@@ -90,6 +90,8 @@ def main():
             api.main_loop()
         except Exception as e:
             log.error('Main loop has an ERROR, restarting %s', e)
+            if config.USE_SLACK:
+                r = requests.post(config.SLACK_HOOK, json={"text": 'Main loop has an ERROR, restarting {0}'.format(e)})
             sleep(30)
             main()
 

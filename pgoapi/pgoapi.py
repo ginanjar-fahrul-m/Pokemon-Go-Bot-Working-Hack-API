@@ -37,7 +37,11 @@ MIN_BAD_ITEM_COUNTS = {Inventory.ITEM_POTION: 10,
                        Inventory.ITEM_NANAB_BERRY: 10,
                        Inventory.ITEM_REVIVE: 10}
 POKEBALLS = ["Pokeball", "Great Ball", "Ultra Ball", "Master Ball"]
+POKEMON_GREAT = [2,4,8,25,37,40,49,86,89,103,112]
+POKEMON_ULTRA = [3,5,6,9,26,31,34,36,38,45,51,53,57,65,67,68,75,76,78,82,83,87,91,94,97,101,105,107,108,110,113,115,122,124,125,126,128,130,131,132,139,141,142,144,145,146,149,150,151]
+POKEMON_MASTER = []
 MIN_SIMILAR_POKEMON = 1
+CURRENT_LEVEL = 'NA'
 
 
 class PGoApi:
@@ -61,6 +65,9 @@ class PGoApi:
         self.RELEASE_DUPLICATES = config.get("RELEASE_DUPLICATE", 0)
         self.DUPLICATE_CP_FORGIVENESS = config.get("DUPLICATE_CP_FOREGIVENESS", 0)
         self.MAX_BALL_TYPE = config.get("MAX_BALL_TYPE", 2)
+        self.USE_SLACK = config.get("USE_SLACK", False)
+        self.SLACK_HOOK = config.get("SLACK_HOOK", "")
+        self.CURRENT_LEVEL = 'NA'
         self._req_method_list = []
         self._heartbeat_number = 5
         self.pokemon_names = pokemon_names
@@ -155,6 +162,10 @@ class PGoApi:
                 player_stats = {}
             currencies = player_data.get('currencies', [])
             currency_data = ",".join(map(lambda x: "{0}: {1}".format(x.get('name', 'NA'), x.get('amount', 'NA')), currencies))
+            if self.CURRENT_LEVEL != player_stats.get('level', 'NA'):
+                if player_data.get('username', 'NA') != 'NA':
+                    self.send_notification("Username: {0}, Lvl: {1}, XP: {2}/{3}".format(player_data.get('username', 'NA'), player_stats.get('level', 'NA'), player_stats.get('experience', 'NA'), player_stats.get('next_level_xp', 'NA')))
+                self.CURRENT_LEVEL = player_stats.get('level', 'NA')
             self.log.info("Username: %s, Lvl: %s, XP: %s/%s, Currencies: %s", player_data.get('username', 'NA'), player_stats.get('level', 'NA'), player_stats.get('experience', 'NA'), player_stats.get('next_level_xp', 'NA'), currency_data)
 
         if 'GET_INVENTORY' in res['responses']:
@@ -276,6 +287,7 @@ class PGoApi:
                         #          self.evolve_pokemon(pokemon_id = pokemon['id'])
                         self.log.debug("Releasing pokemon: %s", pokemon)
                         self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemonIVPercentage(pokemon))
+                        self.send_notification("    Releasing pokemon: {0} IV: {1}".format(self.pokemon_names[str(pokemon['pokemon_id'])], pokemonIVPercentage(pokemon)))
                         self.release_pokemon(pokemon_id = pokemon["id"])
 
         if self.RELEASE_DUPLICATES:
@@ -291,6 +303,7 @@ class PGoApi:
                                     # release the lesser!
                                     self.log.debug("Releasing pokemon: %s", last_pokemon)
                                     self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(last_pokemon['pokemon_id'])], pokemonIVPercentage(pokemon))
+                                    self.send_notification("    Releasing pokemon: {0} IV: {1}".format(self.pokemon_names[str(last_pokemon['pokemon_id'])], pokemonIVPercentage(pokemon)))
                                     self.release_pokemon(pokemon_id = last_pokemon["id"])
                                 last_pokemon = pokemon
                             else:
@@ -298,6 +311,7 @@ class PGoApi:
                                     # release the lesser!
                                     self.log.debug("Releasing pokemon: %s", pokemon)
                                     self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemonIVPercentage(pokemon))
+                                    self.send_notification("    Releasing pokemon: {0} IV: {1}".format(self.pokemon_names[str(pokemon['pokemon_id'])], pokemonIVPercentage(pokemon)))
                                     self.release_pokemon(pokemon_id = pokemon["id"])
 
                         else:
@@ -310,27 +324,40 @@ class PGoApi:
     def disk_encounter_pokemon(self, lureinfo):
         try:
             encounter_id = lureinfo['encounter_id']
+            pokemon_id = lureinfo['active_pokemon_id']
             fort_id = lureinfo['fort_id']
             position = self._posf
             resp = self.disk_encounter(encounter_id=encounter_id, fort_id=fort_id, player_latitude=position[0], player_longitude=position[1]).call()['responses']['DISK_ENCOUNTER']
             if resp['result'] == 1:
                 capture_status = -1
+                if pokemon_id in POKEMON_GREAT:
+                    self._pokeball_type = 2
+                if pokemon_id in POKEMON_ULTRA:
+                    self._pokeball_type = 3
+                if pokemon_id in POKEMON_MASTER:
+                    self._pokeball_type = 4
                 while capture_status != 0 and capture_status != 3:
                     catch_attempt = self.attempt_catch(encounter_id,fort_id,self._pokeball_type)
                     capture_status = catch_attempt['status']
                     if capture_status == 1:
                         self.log.debug("Caught Pokemon: : %s", catch_attempt)
                         self.log.info("Caught Pokemon:  %s", self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])])
+                        self.send_notification("Caught Pokemon:  {0} using {1}".format(
+                            self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])], POKEBALLS[self._pokeball_type-1]))
                         self._pokeball_type = 1
                         sleep(2) # If you want to make it faster, delete this line... would not recommend though
                         return catch_attempt
                     elif capture_status == 2:       
                         self.log.info("Pokemon %s is too wild", self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])])
+                        self.send_notification("Pokemon {0} is too wild using {1}".format( 
+                            self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])], POKEBALLS[self._pokeball_type-1]))
                         if self._pokeball_type < self.MAX_BALL_TYPE:
                             self._pokeball_type += 1
                     elif capture_status != 2:
                         self.log.debug("Failed Catch: : %s", catch_attempt)
                         self.log.info("Failed to catch Pokemon:  %s", self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])])
+                        self.send_notification("Failed to catch Pokemon:  {0} using {1}".format(
+                            self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])], POKEBALLS[self._pokeball_type-1]))
                         self._pokeball_type = 1
                         return False
                     sleep(2) # If you want to make it faster, delete this line... would not recommend though
@@ -339,31 +366,47 @@ class PGoApi:
             self._pokeball_type = 1
             return False
 
+    def send_notification(self, text):
+        if self.USE_SLACK:
+            r = requests.post(self.SLACK_HOOK, json={"text": text})
 
     def encounter_pokemon(self,pokemon):
         encounter_id = pokemon['encounter_id']
+        pokemon_id = pokemon['pokemon_id']
         spawn_point_id = pokemon['spawn_point_id']
         position = self._posf
         encounter = self.encounter(encounter_id=encounter_id,spawn_point_id=spawn_point_id,player_latitude=position[0],player_longitude=position[1]).call()['responses']['ENCOUNTER']
         self.log.debug("Started Encounter: %s", encounter)
         if encounter['status'] == 1:
             capture_status = -1
+            if pokemon_id in POKEMON_GREAT:
+                self._pokeball_type = 2
+            if pokemon_id in POKEMON_ULTRA:
+                self._pokeball_type = 3
+            if pokemon_id in POKEMON_MASTER:
+                self._pokeball_type = 4
             while capture_status != 0 and capture_status != 3:
                 catch_attempt = self.attempt_catch(encounter_id,spawn_point_id,self._pokeball_type)
                 capture_status = catch_attempt['status']
                 if capture_status == 1:
                     self.log.debug("Caught Pokemon: : %s", catch_attempt)
                     self.log.info("Caught Pokemon:  %s", self.pokemon_names[str(pokemon['pokemon_id'])])
+                    self.send_notification("Caught Pokemon:  {0} using {1}".format(
+                        self.pokemon_names[str(pokemon['pokemon_id'])], POKEBALLS[self._pokeball_type-1]))
                     self._pokeball_type = 1
                     sleep(2) # If you want to make it faster, delete this line... would not recommend though
                     return catch_attempt
                 elif capture_status == 2:
                     self.log.info("Pokemon %s is too wild", self.pokemon_names[str(pokemon['pokemon_id'])])
+                    self.send_notification("Pokemon {0} is too wild using {1}".format(
+                        self.pokemon_names[str(pokemon['pokemon_id'])], POKEBALLS[self._pokeball_type-1]))
                     if self._pokeball_type < self.MAX_BALL_TYPE:
                         self._pokeball_type += 1
                 elif capture_status != 2:
                     self.log.debug("Failed Catch: : %s", catch_attempt)
                     self.log.info("Failed to Catch Pokemon:  %s", self.pokemon_names[str(pokemon['pokemon_id'])])
+                    self.send_notification("Failed to Catch Pokemon:  {0} using {1}".format(
+                        self.pokemon_names[str(pokemon['pokemon_id'])], POKEBALLS[self._pokeball_type-1]))
                     self._pokeball_type = 1
                 return False
                 sleep(2) # If you want to make it faster, delete this line... would not recommend though
