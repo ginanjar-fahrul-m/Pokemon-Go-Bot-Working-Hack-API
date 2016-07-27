@@ -90,6 +90,7 @@ ENV/
 
 # Personal load details
 /config.json
+/config.json.run
 accounts
 
 .DS_Store
