@@ -226,10 +226,17 @@ class PGoApi:
             encounter_id=encounter_id,
             spawn_point_guid=spawn_point_guid,
             ).call()['responses']['CATCH_POKEMON']
-        self.log.info("Throwing pokeball type: %s", POKEBALLS[ball_type-1])
         if "status" in r:
+            self.log.info("Throwing pokeball type: %s", POKEBALLS[ball_type-1])
             self.log.debug("Status: %d", r['status'])
             return r
+        else:
+            if self._pokeball_type < self.MAX_BALL_TYPE:
+                self.log.info("Have no pokeball type: %s", POKEBALLS[ball_type-1])
+                self._pokeball_type += 1
+                return self.attempt_catch(encounter_id,spawn_point_guid,self._pokeball_type)
+            else:
+                self.log.info("Empty pokeball items")
 
     def cleanup_inventory(self, inventory_items=None):
         if not inventory_items:
