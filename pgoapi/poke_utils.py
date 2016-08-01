@@ -14,7 +14,7 @@ def get_inventory_data(res, poke_names):
                                           
     inventory_items_pokemon_list_sorted = sorted(
         inventory_items_pokemon_list,
-        key=lambda pokemon: pokemon['pokemon_data']['cp']
+        key=lambda pokemon: pokemon['pokemon_data']['pokemon_id']
     ) 
 
     return (os.linesep.join(map(lambda x: "{0}, CP {1}, IV {2:.2f}".format(

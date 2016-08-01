@@ -175,14 +175,14 @@ class PGoApi:
                 f.write(json.dumps(res['responses'], indent=2))
             self.log.info("\n\r" + get_inventory_data(res, self.pokemon_names))
             # self.log.info("\n\r" + get_inventory_candy(res, self.pokemon_names))
-            self.log.info("\n\r" + get_incubators_stat(res))
+            # self.log.info("\n\r" + get_incubators_stat(res))
             # self.log.info("Current total caught " + get_pokedex_stat(res))
             self.log.debug(self.cleanup_inventory(res['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']))
 
         self._heartbeat_number += 1
         return res
     def walk_to(self,loc):
-        steps = get_route(self._posf, loc, self.config.get("USE_GOOGLE", False), self.config.get("GMAPS_API_KEY", ""))
+        steps = get_route(self._posf, loc, self.config.get("USE_GOOGLE", False), self.config.get("GMAPS_API_KEY", ""))    
         for step in steps:
             for i,next_point in enumerate(get_increments(self._posf,step,self.config.get("STEP_SIZE", 200))):
                 self.set_position(*next_point)
@@ -287,7 +287,7 @@ class PGoApi:
                         #          self.evolve_pokemon(pokemon_id = pokemon['id'])
                         self.log.debug("Releasing pokemon: %s", pokemon)
                         self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemonIVPercentage(pokemon))
-                        self.send_notification("    Releasing pokemon: {0} IV: {1}".format(self.pokemon_names[str(pokemon['pokemon_id'])], pokemonIVPercentage(pokemon)))
+                        self.send_notification(".... Releasing pokemon: {0} IV: {1}".format(self.pokemon_names[str(pokemon['pokemon_id'])].encode('utf-8'), pokemonIVPercentage(pokemon)))
                         self.release_pokemon(pokemon_id = pokemon["id"])
 
         if self.RELEASE_DUPLICATES:
@@ -303,7 +303,7 @@ class PGoApi:
                                     # release the lesser!
                                     self.log.debug("Releasing pokemon: %s", last_pokemon)
                                     self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(last_pokemon['pokemon_id'])], pokemonIVPercentage(pokemon))
-                                    self.send_notification("    Releasing pokemon: {0} IV: {1}".format(self.pokemon_names[str(last_pokemon['pokemon_id'])], pokemonIVPercentage(pokemon)))
+                                    self.send_notification(".... Releasing pokemon: {0} IV: {1}".format(self.pokemon_names[str(last_pokemon['pokemon_id'])].encode('utf-8'), pokemonIVPercentage(pokemon)))
                                     self.release_pokemon(pokemon_id = last_pokemon["id"])
                                 last_pokemon = pokemon
                             else:
@@ -311,7 +311,7 @@ class PGoApi:
                                     # release the lesser!
                                     self.log.debug("Releasing pokemon: %s", pokemon)
                                     self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemonIVPercentage(pokemon))
-                                    self.send_notification("    Releasing pokemon: {0} IV: {1}".format(self.pokemon_names[str(pokemon['pokemon_id'])], pokemonIVPercentage(pokemon)))
+                                    self.send_notification(".... Releasing pokemon: {0} IV: {1}".format(self.pokemon_names[str(pokemon['pokemon_id'])].encode('utf-8'), pokemonIVPercentage(pokemon)))
                                     self.release_pokemon(pokemon_id = pokemon["id"])
 
                         else:
@@ -343,21 +343,21 @@ class PGoApi:
                         self.log.debug("Caught Pokemon: : %s", catch_attempt)
                         self.log.info("Caught Pokemon:  %s", self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])])
                         self.send_notification("Caught Pokemon:  {0} using {1}".format(
-                            self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])], POKEBALLS[self._pokeball_type-1]))
+                            self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])].encode('utf-8'), POKEBALLS[self._pokeball_type-1]))
                         self._pokeball_type = 1
                         sleep(2) # If you want to make it faster, delete this line... would not recommend though
                         return catch_attempt
                     elif capture_status == 2:       
                         self.log.info("Pokemon %s is too wild", self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])])
                         self.send_notification("Pokemon {0} is too wild using {1}".format( 
-                            self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])], POKEBALLS[self._pokeball_type-1]))
+                            self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])].encode('utf-8'), POKEBALLS[self._pokeball_type-1]))
                         if self._pokeball_type < self.MAX_BALL_TYPE:
                             self._pokeball_type += 1
                     elif capture_status != 2:
                         self.log.debug("Failed Catch: : %s", catch_attempt)
                         self.log.info("Failed to catch Pokemon:  %s", self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])])
                         self.send_notification("Failed to catch Pokemon:  {0} using {1}".format(
-                            self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])], POKEBALLS[self._pokeball_type-1]))
+                            self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])].encode('utf-8'), POKEBALLS[self._pokeball_type-1]))
                         self._pokeball_type = 1
                         return False
                     sleep(2) # If you want to make it faster, delete this line... would not recommend though
@@ -392,21 +392,21 @@ class PGoApi:
                     self.log.debug("Caught Pokemon: : %s", catch_attempt)
                     self.log.info("Caught Pokemon:  %s", self.pokemon_names[str(pokemon['pokemon_id'])])
                     self.send_notification("Caught Pokemon:  {0} using {1}".format(
-                        self.pokemon_names[str(pokemon['pokemon_id'])], POKEBALLS[self._pokeball_type-1]))
+                        self.pokemon_names[str(pokemon['pokemon_id'])].encode('utf-8'), POKEBALLS[self._pokeball_type-1]))
                     self._pokeball_type = 1
                     sleep(2) # If you want to make it faster, delete this line... would not recommend though
                     return catch_attempt
                 elif capture_status == 2:
                     self.log.info("Pokemon %s is too wild", self.pokemon_names[str(pokemon['pokemon_id'])])
                     self.send_notification("Pokemon {0} is too wild using {1}".format(
-                        self.pokemon_names[str(pokemon['pokemon_id'])], POKEBALLS[self._pokeball_type-1]))
+                        self.pokemon_names[str(pokemon['pokemon_id'])].encode('utf-8'), POKEBALLS[self._pokeball_type-1]))
                     if self._pokeball_type < self.MAX_BALL_TYPE:
                         self._pokeball_type += 1
                 elif capture_status != 2:
                     self.log.debug("Failed Catch: : %s", catch_attempt)
                     self.log.info("Failed to Catch Pokemon:  %s", self.pokemon_names[str(pokemon['pokemon_id'])])
                     self.send_notification("Failed to Catch Pokemon:  {0} using {1}".format(
-                        self.pokemon_names[str(pokemon['pokemon_id'])], POKEBALLS[self._pokeball_type-1]))
+                        self.pokemon_names[str(pokemon['pokemon_id'])].encode('utf-8'), POKEBALLS[self._pokeball_type-1]))
                     self._pokeball_type = 1
                 return False
                 sleep(2) # If you want to make it faster, delete this line... would not recommend though
