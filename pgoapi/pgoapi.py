@@ -23,6 +23,7 @@ from pgoapi.location import *
 import pgoapi.protos.POGOProtos.Enums_pb2 as RpcEnum
 from pgoapi.poke_utils import *
 from time import sleep
+from operator import itemgetter, attrgetter
 from collections import defaultdict
 import os.path
 
@@ -67,6 +68,10 @@ class PGoApi:
         self.MAX_BALL_TYPE = config.get("MAX_BALL_TYPE", 2)
         self.USE_SLACK = config.get("USE_SLACK", False)
         self.SLACK_HOOK = config.get("SLACK_HOOK", "")
+        self.AUTO_EVOLVE_POKEMON_IDS = config.get("AUTO_EVOLVE_POKEMON_IDS", [])
+        self.KEEP_BEST_POKEMON_ONLY = config.get("KEEP_BEST_POKEMON_ONLY", False)
+        self.KEEP_BEST_POKEMON_MIN_CP = config.get("KEEP_BEST_POKEMON_MIN_CP", 100)
+        self.KEEP_BEST_POKEMON_MIN_IV = config.get("KEEP_BEST_POKEMON_MIN_IV", 20)
         self.CURRENT_LEVEL = 'NA'
         self._req_method_list = []
         self._heartbeat_number = 5
@@ -182,7 +187,14 @@ class PGoApi:
         self._heartbeat_number += 1
         return res
     def walk_to(self,loc):
-        steps = get_route(self._posf, loc, self.config.get("USE_GOOGLE", False), self.config.get("GMAPS_API_KEY", ""))    
+        try:
+            steps = get_route(self._posf, loc, self.config.get("USE_GOOGLE", False), self.config.get("GMAPS_API_KEY_1", ""))
+        except Exception as e:
+            try:
+                steps = get_route(self._posf, loc, self.config.get("USE_GOOGLE", False), self.config.get("GMAPS_API_KEY_2", ""))
+            except Exception as e:
+                steps = get_route(self._posf, loc, self.config.get("USE_GOOGLE", False), self.config.get("GMAPS_API_KEY_3", ""))
+            
         for step in steps:
             for i,next_point in enumerate(get_increments(self._posf,step,self.config.get("STEP_SIZE", 200))):
                 self.set_position(*next_point)
