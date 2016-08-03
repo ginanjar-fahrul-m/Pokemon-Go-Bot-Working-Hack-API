@@ -39,7 +39,7 @@ MIN_BAD_ITEM_COUNTS = {Inventory.ITEM_POTION: 10,
                        Inventory.ITEM_REVIVE: 10}
 POKEBALLS = ["Pokeball", "Great Ball", "Ultra Ball", "Master Ball"]
 POKEMON_GREAT = [2,4,8,25,37,40,49,86,89,103,112]
-POKEMON_ULTRA = [3,5,6,9,26,31,34,36,38,45,51,53,57,65,67,68,75,76,78,82,83,87,91,94,97,101,105,107,108,110,113,115,122,124,125,126,128,130,131,132,139,141,142,144,145,146,149,150,151]
+POKEMON_ULTRA = [3,5,6,9,26,31,34,36,38,45,51,53,57,65,66,67,68,75,76,78,82,83,87,91,94,97,101,105,107,108,110,113,115,122,124,125,126,128,130,131,132,139,141,142,144,145,146,149,150,151]
 POKEMON_MASTER = []
 MIN_SIMILAR_POKEMON = 1
 CURRENT_LEVEL = 'NA'
@@ -179,9 +179,9 @@ class PGoApi:
                 res['responses']['lng'] = self._posf[1]
                 f.write(json.dumps(res['responses'], indent=2))
             self.log.info("\n\r" + get_inventory_data(res, self.pokemon_names))
-            # self.log.info("\n\r" + get_inventory_candy(res, self.pokemon_names))
+            self.log.info("\n\r" + get_inventory_candy(res, self.pokemon_names))
             # self.log.info("\n\r" + get_incubators_stat(res))
-            # self.log.info("Current total caught " + get_pokedex_stat(res))
+            self.log.info("Current total caught " + get_pokedex_stat(res))
             self.log.debug(self.cleanup_inventory(res['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']))
 
         self._heartbeat_number += 1
