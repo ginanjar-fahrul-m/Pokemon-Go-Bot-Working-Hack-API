@@ -16,7 +16,7 @@
         "MAX_BALL_TYPE": 3,
         "KEEP_BEST_POKEMON_ONLY": false,
         "KEEP_BEST_POKEMON_MIN_CP": 400,
-        "KEEP_BEST_POKEMON_MIN_IV": 20
+        "KEEP_BEST_POKEMON_MIN_IV": 20,
         "USE_SLACK": false,
         "SLACK_HOOK": ""
     }]
